@@ -1,0 +1,486 @@
+3.6
+
+select round(cast(count(distinct tickets.customer_id) as decimal) / cast(count(distinct customers.id) as decimal) * 100.00, 2) as percent from customers left outer join tickets on tickets.customer_id = customers.id;
+
+select events.name, count(tickets.id) as popularity from events right join tickets on events.id = tickets.event_id group by events.name order by popularity desc;
+
+select customers.id as id, customers.email as email, count(distinct tickets.event_id) as count from customers right join tickets on customers.id = tickets.customer_id group by customers.id having count(distinct tickets.event_id) = 3 order by id asc;
+
+select events.name as event, events.starts_at as starts_at, sections.name as section, seats.row as row, seats.number as seats from customers inner join tickets on customers.id = tickets.customer_id inner join events on tickets.event_id = events.id inner join seats on tickets.seat_id = seats.id inner join sections on seats.section_id = sections.id where customers.email = 'gennaro.rath@mcdermott.co';
+
+3.7
+
+alter table orders add constraint orders_product_id_fkey foreign key (product_id) references products(id);
+
+insert into products(name) values ('small bolt'), ('large bolt');
+insert into orders(product_id, quantity) values (1, 10), (1, 25), (2, 15);
+
+select orders.quantity as quantity, products.name as name from orders inner join products on orders.product_id = products.id order by name desc, quantity asc;
+
+insert into orders(quantity) values (5);
+
+alter table orders alter column product_id set not null;
+
+delete from orders where product_id is null;
+
+create table reviews(id serial primary key, product_id int, review text);
+alter table reviews add constraint reviews_product_id_fkey foreign key (product_id) references products(id);
+
+insert into reviews(product_id, review) values (1, 'a little small'), (1, 'very round!'), (2, 'could have been smaller');
+
+3.8
+
+insert into calls("when", duration, contact_id) values ('2016-01-18 14:47:00', 632, 6);
+
+select calls."when" as "when", calls.duration as duration, contacts.first_name as first_name, contacts.last_name as last_name, contacts.number as number from calls inner join contacts on calls.contact_id = contacts.id where contacts.id <> 6;
+
+insert into contacts(first_name, last_name, "number") values ('	Merve', 'Elk', 	'6343511126'), ('Sawa', 'Fyodorov', '6125594874');
+select * from contacts;
+insert into calls("when", duration, contact_id) values ('2016-01-17 11:52:00', 175, 26), ('2016-01-18 21:22:00', 79, 27);
+
+alter table contacts add constraint unique_number unique ("number");
+
+insert into contacts(first_name, last_name, "number") values ('test', 'test', 7204890809);
+
+3.9
+CREATE TABLE directors (id serial PRIMARY KEY, name text NOT NULL);
+INSERT INTO directors (name) VALUES ('John McTiernan');
+update films set director_id = 1 where director = 'John McTiernan';
+alter table films set director_id not null;
+alter table films drop director;
+alter table directors add constraint director_name CHECK (length("name"::text) >= 1 AND "position"("name"::text, ' '::text) > 0);
+alter table directors add constraint director_name CHECK (length("name"::text) >= 1 AND "position"("name"::text, ' '::text) > 0);
+select films.title as title, films.year as year, directors.name as director from films left join directors on films.director_id = directors.id;
+
+3.10
+create table stars(id serial primary key, "name" varchar(25) unique not null, distance int not null, spectral_type varchar(1), companions int not null);
+alter table stars add constraint distance_bigger_than_zero check (distance > 0);
+alter table stars add constraint companion_non_negative check (companions >= 0);
+alter table stars add constraint spectral_type_valid check (spectral_type in ('O', 'B', 'A', 'F', 'G', 'K', 'M'));
+
+create table planets(id serial primary key, designation varchar(1), mass int);
+alter table planets add constraint designation_alphabetic check (designation ~ '^[A-Za-z]$');
+alter table planets add unique (designation);
+
+alter table planets add column star_id int;
+alter table planets add foreign key (star_id) references stars(id);
+alter table planets alter column star_id set not null;
+
+alter table stars alter column "name" type varchar(50);
+
+alter table stars alter column distance type numeric;
+
+alter table stars alter column spectral_type set not null;
+
+alter table stars drop constraint spectral_type_valid;
+create type enum_spectral_type as enum('O', 'B', 'A', 'F', 'G', 'K', 'M');
+alter table stars alter column spectral_type type enum_spectral_type USING spectral_type::enum_spectral_type; // USING clause tells PostgreSQL how to convert the existing spectral_type values into the new enum type.
+
+alter table planets alter column mass type numeric;
+alter table planets add constraint mass_is_positive check (mass > 0);
+alter table planets alter column mass set not null;
+alter table planets alter column designation set not null;
+
+alter table planets add column semi_major_axis numeric not null;
+
+create table moons(id serial primary key, designation int unique not null, semi_major_axis numeric, mass numeric);
+alter table moons add constraint semi_major_axis_greater_than_zero check (semi_major_axis > 0);
+alter table moons add constraint mass_greater_than_zero check (mass > 0);
+alter table moons add column planet_id int;
+alter table moons alter column planet_id set not null;
+alter table moons add foreign key (planet_id) references planets(id);
+
+
+3.11
+create table devices(id serial primary key, name text not null, created_at timestamp default now());
+
+create table parts(id serial primary key, part_number int unique not null, device_id int not null);
+alter table parts add foreign key (device_id) references devices(id);
+
+insert into devices(name) values ('Accelerometer'), ('Gyroscope');
+select * from devices;
+alter table parts alter column device_id drop not null;
+insert into parts(part_number, device_id) values (100, 1), (143, 1), (775, 1), (123, 2), (643, 2), (899, 2), (1931, 2), (8754, 2), (544, null), (5043, null), (7285, null);
+
+select devices.name as name, parts.part_number as part_number from devices inner join parts on devices.id = parts.device_id;
+
+select * from parts where cast(part_number as text) like '3%';
+
+select devices.name, count(parts.id) from devices left join parts on devices.id = parts.device_id group by devices.name;
+
+select devices.name, count(parts.id) from devices left join parts on devices.id = parts.device_id group by devices.name order by devices.name desc;
+
+select part_number, device_id from parts where device_id is not null;
+select part_number, device_id from parts where device_id is null;
+
+INSERT INTO devices (name) VALUES ('Magnetometer');
+INSERT INTO parts (part_number, device_id) VALUES (42, 3);
+
+select name from devices order by created_at asc limit 1;
+
+select parts.id, devices.name from parts inner join devices on parts.device_id = devices.id where devices.name = 'Gyroscope' order by parts.part_number desc limit 2;
+select id from devices where name = 'Accelerometer';
+update parts set device_id = 1 where parts.id = 8 or parts.id = 7;
+
+alter table parts drop constraint parts_device_id_fkey;
+alter table parts add constraint parts_device_id_fkey foreign key (device_id) references devices(id) on delete cascade;
+delete from devices where name = 'Accelerometer';
+
+3.12
+alter table books_categories alter column book_id set not null;
+alter table books_categories alter column category_id set not null;
+alter table books_categories drop constraint books_categories_book_id_fkey;
+alter table books_categories add constraint books_categories_book_id_fkey foreign key (book_id) references books(id) on delete cascade;
+alter table books_categories drop constraint books_categories_category_id_fkey;
+alter table books_categories add constraint books_categories_category_id_fkey foreign key (category_id) references categories(id) on delete cascade;
+
+select books.id as id, books.author as author, string_agg(categories.name, ', ') as categories from books inner join books_categories on books.id = books_categories.book_id inner join categories on categories.id = books_categories.category_id group by books.id order by books.id;
+
+alter table books alter column title type varchar(50);
+insert into books(author, title) values ('Lynn Sherr', 'Sally Ride: America''s First Woman in Space'), ('Charlotte Brontë', '	Jane Eyre'), ('Meeru Dhalwala and Vikram Vij', 'Vij''s: Elegant and Inspired Indian Cuisine');
+insert into categories(name) values ('Space Exploration'), ('Cookbook'), ('South Asia');
+insert into books_categories (book_id, category_id) values (4, 5), (4, 1), (4, 7), (5, 2), (5, 4), (6, 8), (6, 1), (6, 9);
+
+alter table books_categories add constraint unique_record unique(book_id, category_id);
+
+select categories.name as name, count(books_categories.book_id) as book_count, string_agg(books.title, ', ') as book_titles from books inner join books_categories on books.id = books_categories.book_id inner join categories on categories.id = books_categories.category_id group by categories.name order by categories.name asc;
+
+
+3.13
+create table films_directors(film_id int not null, director_id int not null);
+alter table films_directors add constraint film_id_fkey foreign key (film_id) references films(id) on delete cascade;
+alter table films_directors add constraint director_id_fkey foreign key(director_id) references directors(id) on delete cascade;
+alter table films_directors add constraint unique_film_director_pair unique(film_id, director_id);
+alter table films_directors add column id serial primary key;
+
+
+insert into films_directors(film_id, director_id) values (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6), (7, 3), (8, 7), (9, 8), (10, 5);
+
+alter table films drop director_id;
+
+select films.title as title, directors.name as name from films inner join films_directors on films.id = films_directors.film_id inner join directors on directors.id = films_directors.director_id order by films.title asc;
+
+insert into films(title, year, genre, duration) values ('Fargo', 	1996, 'comedy', 98), ('No Country for Old Men', 2007, 'western', 122), ('Sin City', 2005, 'crime', 124), ('Spy Kids', 2001, 'scifi', 88);
+insert into directors(name) values ('Joel Coen'), ('Ethan Coen'), ('Frank Miller'), ('Robert Rodriguez');
+select id, name from directors where name in ('Joel Coen', 'Ethan Coen', 'Frank Miller', 'Robert Rodriguez') order by name asc;
+select id, title from films where title in ('Fargo', 'No Country for Old Men', 'Sin City', 'Spy Kids') order by title asc;
+insert into films_directors(film_id, director_id) values (11, 9), (12, 9), (12, 10), (13, 11), (13, 12), (14, 12);
+
+select directors.name as director, count(films_directors.director_id) as films from directors inner join films_directors on films_directors.director_id = directors.id group by directors.name order by films desc, directors.name asc;
+
+3.14
+create table customers(id serial primary key, name text not null, payment_token varchar(8) unique not null);
+alter table customers add constraint payment_token_upper_alphabetic check (payment_token ~ '^[A-Z]*$');
+alter table customers add constraint payment_token_eight_chars check (length(payment_token) = 8);
+create table services(id serial primary key, description text not null, price numeric(10, 2) not null);
+alter table services add constraint min_annual_price check (price >= 0.00);
+insert into customers(name, payment_token) values ('Pat Johnson', 'XHGOAHEQ'), ('Nancy Monreal', 'JKWQPJKL'), ('Lynn Blake', 'KLZXWEEE'), ('Chen Ke-Hua', 'KWETYCVX'), ('Scott Lakso', 'UUEAPQPS'), ('Jim Pornot', 'XKJEYAZA');
+insert into services (description, price) values ('Unix Hosting', 5.95), ('DNS', 4.95), ('Whois Registration', 1.95), ('High Bandwidth', 15.00), ('Business Support', 250.00), ('Dedicated Hosting', 50.00), ('Bulk Email', 250.00), ('One-to-one Training', 999.00);
+create table customers_services(id serial primary key, customer_id int not null, service_id int not null);
+alter table customers_services add constraint customer_id_fkey foreign key (customer_id) references customers(id) on delete cascade;
+alter table customers_services add constraint service_id_fkey foreign key (service_id) references services(id);
+alter table customers_services add constraint unique_pairs unique(customer_id, service_id);
+select * from customers order by name asc;
+select * from services order by description asc;
+insert into customers_services(customer_id, service_id) values (2, 1), (2, 2), (2, 3), (4, 1), (4, 2), (4, 3), (4, 4), (4, 5), (5, 1), (5, 4), (6, 1), (6, 2), (6, 6), (7, 1), (7, 6), (7, 7);
+
+select distinct customers.* from customers inner join customers_services on customers.id = customers_services.customer_id;
+
+select customers.* from customers left join customers_services on customers.id = customers_services.customer_id where customers_services.service_id is null;
+
+select services.description from customers_services right join services on services.id = customers_services.service_id where customers_services.service_id is null;
+
+select customers.name, string_agg(services.description, ', ') as services from customers left join customers_services on customers.id = customers_services.customer_id left join services on services.id = customers_services.service_id group by customers.id;
+
+select services.description, count(customers_services.id) as count from services inner join customers_services on services.id = customers_services.service_id group by services.description having (count(customers_services.customer_id) >= 3) order by description; 
+
+select sum(services.price) as gross from services inner join customers_services on services.id = customers_services.service_id;
+
+insert into customers(name, payment_token) values ('John Doe', 'EYODHLCN');
+select id, name from customers where name = 'John Doe';
+insert into customers_services(customer_id, service_id) values (8, 1), (8, 2), (8, 3);
+
+select sum(services.price) as sum from services inner join customers_services on services.id = customers_services.service_id where (services.price > 100);
+select sum(services.price) as sum from services cross join customers where services.price > 100;
+
+select id from services where description = 'Bulk Email';
+delete from customers_services where service_id = 7;
+delete from services where description = 'Bulk Email';
+delete from customers where name = 'Chen Ke-Hua';
+
+4.5
+create table bidders(id serial primary key, name text not null);
+create table items(id serial primary key, name text not null, initial_price numeric(6, 2) not null, sales_price numeric(6,2));
+alter table items add constraint max_initial_price check (initial_price <= 1000.00);
+alter table items add constraint pos_initial_price check (initial_price > 0);
+alter table items add constraint max_sales_price check (sales_price <= 1000);
+alter table items add constraint pos_sales_price check (sales_price > 0);
+create table bids(id serial primary key, bidder_id int not null, item_id int not null, amount numeric(6,2) not null);
+alter table bids add constraint bidder_id_fkey foreign key (bidder_id) references bidders(id) on delete cascade;
+alter table bids add constraint item_id_fkey foreign key (item_id) references items(id) on delete cascade;
+alter table bids add constraint max_amount check (amount <= 1000.00);
+alter table bids add constraint pos_amount check (amount > 0);
+create index bids_index on bids(bidder_id, item_id);
+\copy bidders from 'bidders.csv' with (format csv, header)
+\copy items from 'items.csv' with (format csv, header)
+\copy bids from 'bids.csv' with (format csv, header)
+
+
+select items.name as "Bid on Items" from items where items.id in (select item_id from bids);
+
+select items.name as "Not bid on" from items where items.id not in (select item_id from bids);
+
+select name from bidders where exists (select 1 from bids where bidder_id = bidders.id);
+
+select max(bid_counts.bid_count) as max from (select count(bidder_id) as bid_count from bids group by bidder_id) as bid_counts;
+
+select items.name, (select count(bids.item_id) from bids where bids.item_id = items.id) as count from items;
+
+select id from (select * from (select * from items where sales_price = 250.00) where initial_price = 100.00) where name = 'Painting';
+select id from items where row(name, initial_price, sales_price) = row('Painting', 100.00, 250.00);
+
+Explain SELECT name FROM bidders WHERE EXISTS (SELECT 1 FROM bids WHERE bids.bidder_id = bidders.id);
+Explain Analyze SELECT name FROM bidders WHERE EXISTS (SELECT 1 FROM bids WHERE bids.bidder_id = bidders.id);
+
+Practice quiz
+-- 1
+-- create a books table to hold:
+-- a book's title, 
+-- the year it was published (specified with exactly 4 digits), 
+-- and its page count. 
+-- Also include a primary key column that will autogenerate an incrementing value. 
+
+-- Make sure that all the columns except the page count require a value. 
+-- The column names should be id, title, year_published, and page_count.
+
+CREATE TABLE books(id SERIAL PRIMARY KEY, title TEXT NOT NULL, year_published INT NOT NULL, page_count INT);
+ALTER TABLE books ADD CONSTRAINT year_published_digits CHECK (length(CAST(year_published AS TEXT)) = 4);
+
+-- Write SQL statements to add the following data to the books table:
+INSERT INTO books(title, year_published, page_count) VALUES
+('A Closed and Common Orbit', 2016, NULL),
+('A Fall of Moondust', 1961, 224),
+('Cat''s Cradle', 1963, 304),
+('Dune', 	1965, 412),
+('Project Hail Mary', 2021, 496),
+('Record of a Spaceborn Few', 2018, NULL),
+('The Difference Engine', 1990, 383),
+('The Dispossessed', 1974, 341),
+('The Galaxy, and the Ground Within', 2021, NULL),
+('The Lathe of Heaven', 1971, 184),
+('The Left Hand of Darkness', 1969, 286),
+('The Long Tomorrow', 1955, 222),
+('The Sirens of Titan', 1959, 319);
+
+-- 3
+-- Write a SQL statement that returns a list of the 4 longest books (in terms of pages) published in 2017 or earlier, 
+-- with the longest books first. The output should look exactly as shown below:
+
+SELECT title AS "Book Title", year_published as "Published", page_count as "Page Count" FROM books WHERE year_published <= 2017 AND page_count IS NOT NULL ORDER BY "Page Count" desc LIMIT 4;
+
+-- 4
+-- Write the SQL to create another table, authors, which should have columns for id (the primary key) and name. 
+-- All rows are required to have a value in the name column.
+-- Do not add any unnecessary constraints to the schema.
+-- Once you have created the table, populate it with the following authors:
+
+CREATE TABLE authors(id SERIAL PRIMARY KEY, name TEXT NOT NULL);
+INSERT INTO authors(name) VALUES
+('Arthur C. Clarke'),
+('Becky Chambers'),
+('Bruce Sterling'),
+('Frank Herbert'),
+('Kurt Vonnegut, Jr.'),
+('Leigh Brackett'),
+('Ursula K. Le Guin'),
+('Victoria Aveyard'),
+('William Gibson');
+
+
+-- 5
+-- We want to be able to write queries that let us determine the author that wrote each of these novels, and a list of the novels written by each author. Using the data shown below, for instance, we should be able to tell that Kurt Vonnegut, Jr., wrote Cat's Cradle and The Sirens of Titan. We should also be able to tell that Dune was written by Frank Herbert.
+-- Make the necessary changes to the database to ensure that we can make these queries. Note that The Difference Engine is a collaboration between two different authors. We also lack an author for Project Hail Mary, and no books are listed for Victoria Aveyard.
+-- Unlike most questions on this exam, you should use all constraints and options recommended in the Launch School course material, even those we haven't specified in this question.
+-- Unlike most questions on this exam, you should use all constraints and options recommended in the Launch School course material, even those we haven't specified in this question.
+
+CREATE TABLE authors_books(id SERIAL PRIMARY KEY, author_id INT NOT NULL, book_id INT NOT NULL);
+ALTER TABLE authors_books ADD CONSTRAINT author_id_fkey FOREIGN KEY (author_id) REFERENCES authors(id) ON DELETE CASCADE;
+ALTER TABLE authors_books ADD CONSTRAINT book_id_fkey FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE;
+ALTER TABLE authors_books ADD CONSTRAINT unique_pair UNIQUE(author_id, book_id);
+INSERT INTO authors_books(book_id, author_id) VALUES 
+(1, 2),
+(2, 1),
+(3, 5),
+(4, 4),
+(6, 2),
+(7, 9),
+(7, 3),
+(8, 7),
+(9, 2),
+(10, 7),
+(11, 7),
+(12, 6),
+(13, 5);
+
+--Write an SQL query to determine which books were written by Becky Chambers, 
+-- then write another query to determine which authors collaborated to write the book The Difference Engine 
+-- Your queries should provide the following answers:
+-- Do not look up the book and author IDs manually. 
+-- Your query must look up the appropriate ID(s) and then use those ID(s) to locate the desired information.
+
+SELECT books.title FROM authors INNER JOIN authors_books ON authors_books.author_id = authors.id INNER JOIN books ON authors_books.book_id = books.id WHERE authors.name = 'Becky Chambers';
+SELECT authors.name FROM authors INNER JOIN authors_books ON authors_books.author_id = authors.id INNER JOIN books ON authors_books.book_id = books.id WHERE books.title = 'The Difference Engine' ORDER BY authors.name;
+
+-- Write a SQL query that displays a list of all authors who have written two or more books. The output should look like this:
+-- The order of the output does not matter in this case.
+
+SELECT authors.name AS Author, count(authors_books.book_id) AS "Number of books" FROM authors INNER JOIN authors_books ON authors.id = authors_books.author_ID GROUP BY authors.id HAVING count(authors_books.book_id) >= 2;
+
+-- 8
+-- Write a SQL query to determine the number of books and the average number of pages for the books that each author either wrote or collaborated with another author. The output should look like this:
+-- The output should be sorted such that authors that worked on the most books appear first. Where there's a tie, the author with the longest average page count should appear first. (Thus, Leigh Brackett follows Arthur C. Clarke since Brackett's book is shorter than Clark's.)
+
+SELECT authors.name AS "Author", count(authors_books.book_id) AS "Number of Books", round(avg(books.page_count), 0) AS "Average Page Count" FROM authors LEFT JOIN authors_books ON authors.id = authors_books.author_id LEFT JOIN books ON authors_books.book_id = books.id GROUP BY authors.id ORDER BY "Number of Books" DESC, "Average Page Count" DESC;
+
+
+-- 9
+-- Write a SQL query to determine which authors in the authors table did not work on any of the books in the books table (at least according to the data provided in this assessment). The output should look like this:
+-- Next, write a SQL query to determine which books in the books table have no authors listed in the authors table. The output should look like this:
+
+SELECT authors.name AS "Author" FROM authors LEFT JOIN authors_books ON authors.id = authors_books.author_id WHERE authors_books.book_id IS NULL;
+SELECT books.title AS "Book Title" FROM books LEFT JOIN authors_books ON books.id = authors_books.book_id WHERE authors_books.author_id IS NULL;
+
+-- 10
+-- Add a constraint to the books table that ensures that the year_published can't be in the future. 
+-- You can use date_part('YEAR', current_date) to determine the current year. 
+-- Create a test statement attempting to insert a book with a year in the future to verify the constraint works.
+
+ALTER TABLE books ADD CONSTRAINT year_published_not_future CHECK (year_published <= date_part('YEAR', current_date));
+
+
+-- Excercise set LS180 - SQL Querying
+
+-- Easy 1
+
+SELECT * FROM books WHERE published_year >= 2000;
+
+SELECT title, published_year FROM books ORDER BY published_year ASC LIMIT 1;
+
+SELECT * FROM books ORDER BY price DESC LIMIT 3;
+
+SELECT books.title, authors.name, publishers.name FROM books LEFT JOIN authors ON books.author_id = authors.id;
+
+SELECT books.title, authors.name, publishers.name FROM books LEFT JOIN authors ON books.author_id = authors.id LEFT JOIN publishers ON books.publisher_id = publishers.id;
+
+SELECT publishers.name AS publisher, count(books.publisher_id) AS books_published FROM books INNER JOIN publishers ON books.publisher_id = publishers.id GROUP BY publishers.id;
+
+SELECT authors.name AS name, round(avg(books.price), 2) as average_book_price FROM authors LEFT JOIN books ON authors.id = books.author_id GROUP BY authors.name ORDER BY average_book_price DESC;
+
+SELECT authors.name AS author, count(books.author_id) AS books_published FROM authors LEFT JOIN books ON authors.id = books.author_id GROUP BY author HAVING books_published > 1;
+
+SELECT title FROM books WHERE books.price > (SELECT avg(price) FROM books);
+
+-- SELECT authors.name AS author, string_agg(DISTINCT publishers.name, ', ') AS publishers FROM authors INNER JOIN books ON authors.id = books.author_id INNER JOIN publishers ON books.publisher_id = publishers.id GROUP BY authors.id HAVING authors.country = 'UK';
+SELECT DISTINCT authors.name AS author, publishers.name AS publishers FROM authors INNER JOIN books ON authors.id = books.author_id INNER JOIN publishers ON books.publisher_id = publishers.id WHERE authors.country = 'UK';
+
+
+-- -- Easy 2
+SELECT name FROM students WHERE subscription_status = 'active';
+
+SELECT subscription_status, count(subscription_status) AS number_of_students FROM students GROUP BY subscription_status;
+
+SELECT courses.label, courses.description, enrollments.status FROM courses INNER JOIN enrollments ON courses.id = enrollments.course_id WHERE enrollments.student_id = 1;
+
+
+-- !! SELECT students.name AS student, count(enrollments.status) AS courses_completed FROM students LEFT JOIN enrollments ON students.id = enrollments.student_id WHERE enrollments.status = 'completed' GROUP BY students.id ORDER BY courses_completed ASC;
+SELECT students.name AS student, count(enrollments.course_id) AS courses_completed FROM students LEFT JOIN enrollments ON students.id = enrollments.student_id AND enrollments.status = 'completed' GROUP BY student ORDER BY courses_completed DESC;
+
+SELECT students.name AS student, count(enrollments.course_id) AS courses_in_progress FROM students INNER JOIN enrollments ON students.id = enrollments.student_id WHERE enrollments.status = 'in progress' GROUP BY students.id ORDER BY student;
+SELECT DISTINCT students.name as student FROM students INNER JOIN enrollments ON students.id = enrollments.student_id WHERE enrollments.status = 'in progress' ORDER BY student;
+
+SELECT students.name, courses.label, courses.description FROM students INNER JOIN enrollments ON students.id = enrollments.student_id INNER JOIN courses ON enrollments.course_id = courses.id WHERE enrollments.status = 'in progress' ORDER BY students.name;
+
+SELECT DISTINCT students.name FROM students INNER JOIN enrollments ON students.id = enrollments.student_id INNER JOIN courses ON enrollments.course_id = courses.id WHERE courses.label LIKE 'PY%';
+
+SELECT DISTINCT students.name FROM students INNER JOIN enrollments ON students.id = enrollments.student_id INNER JOIN courses ON enrollments.course_id = courses.id WHERE courses.label LIKE '%S2%';
+SELECT DISTINCT students.name FROM students INNER JOIN enrollments ON students.id = enrollments.student_id INNER JOIN courses ON enrollments.course_id = courses.id WHERE courses.label IN ('LS202', 'JS210', 'JS211', 'LS215', 'LS216', 'JS225', 'JS229', 'JS230', 'JS235', 'JS239', 'TS240', 'TS249', 'LS250', 'LS259');
+
+SELECT SUBSTR(courses.label, 1, 2) AS prefix, count(courses.id) AS enrollment_count FROM courses INNER JOIN enrollments ON courses.id = enrollments.course_id GROUP BY prefix;
+
+--SELECT students.name FROM students INNER JOIN enrollments ON students.id = enrollments.student_id INNER JOIN courses ON enrollments.course_id = courses.id GROUP BY count(courses.label IN ('PY100', 'JS100', 'RB100')) > 1;
+SELECT students.name FROM students INNER JOIN enrollments ON students.id = enrollments.student_id INNER JOIN courses ON enrollments.course_id = courses.id WHERE courses.label IN ('PY100', 'JS100', 'RB100') GROUP BY students.name HAVING count(courses.id) > 1;
+
+-- Ex set SQL Querying Medium 1
+SELECT orders.*, customers.name FROM orders LEFT JOIN customers ON orders.customer_id = customers.id;
+
+SELECT * FROM orders WHERE customer_id IS NULL OR customer_id NOT IN (SELECT id FROM customers);
+
+SELECT customers.email, COUNT(customers.email) AS count FROM customers GROUP BY customers.email HAVING COUNT(customers.email) > 1;
+
+SELECT DISTINCT status FROM orders;
+-- SELECT COUNT(*) AS pending_orders FROM orders WHERE status IN ('pending', 'Pending', 'PENDING'); 
+SELECT COUNT(*) AS pending_orders FROM orders WHERE LOWER(TRIM(status)) = 'pending';
+
+SELECT status FROM orders;
+SELECT LOWER(TRIM(status)) AS clean_status, COUNT(status) FROM orders GROUP BY clean_status;
+
+SELECT * FROM orders ORDER BY total_amount;
+SELECT * FROM orders WHERE total_amount >= 0 ORDER BY total_amount;
+
+SELECT SUM(total_amount) FROM orders INNER JOIN customers ON orders.customer_id = customers.id AND orders.total_amount >= 0;
+SELECT SUM(total_amount) FROM orders WHERE orders.total_amount > 0 AND orders.customer_id IN (SELECT customers.id FROM customers);
+
+SELECT AVG(total_amount) FROM orders WHERE total_amount IS NOT NULL AND total_amount > 0;
+
+SELECT created_at FROM customers WHERE created_at !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$';
+
+SELECT * FROM customers WHERE LOWER(name) IN
+ (SELECT LOWER(name) FROM customers GROUP BY LOWER(name) HAVING COUNT(*) > 1)  
+ OR LOWER(email) IN
+ (SELECT LOWER(email) FROM customers GROUP BY LOWER(email) HAVING COUNT(*) > 1);
+
+
+-- Exercises SQL Querying Medium2
+
+SELECT users.name FROM users WHERE users.id NOT IN (SELECT follower_id FROM follows);
+SELECT users.name FROM users LEFT JOIN follows ON users.id = follows.follower_id WHERE follows.follower_id IS NULL;
+
+SELECT users.id, users.name, COUNT(likes.user_id) AS count_likes FROM users LEFT JOIN likes ON users.id = likes.user_id GROUP BY users.id ORDER BY count_likes DESC;
+
+SELECT posts.id, COUNT(likes.post_id) AS like_count, posts.user_id, users.name FROM posts LEFT JOIN likes ON posts.id = likes.post_id LEFT JOIN users on posts.user_id = users.id GROUP BY posts.id, users.name ORDER BY like_count DESC;
+
+SELECT posts.id, COUNT(likes.post_id) AS like_count FROM posts INNER JOIN likes ON posts.id = likes.post_id WHERE posts.created_at > '2025-09-30' GROUP BY posts.id ORDER BY like_count DESC LIMIT 3;
+
+SELECT DISTINCT users.id, users.name FROM users WHERE users.id NOT IN (SELECT posts.user_id FROM posts WHERE posts.created_at >= '2025-10-28');
+SELECT users.id, users.name FROM users LEFT JOIN posts ON users.id = posts.user_id GROUP BY users.id, users.name HAVING MAX(posts.created_at) < '2025-10-28' OR MAX(posts.created_at) IS NULL;
+
+SELECT users.id, users.name, COUNT(follows.followee_id) AS follower_count FROM users INNER JOIN follows ON users.id = follows.followee_id GROUP BY users.id, users.name ORDER BY follower_count DESC LIMIT 5;
+
+
+SELECT users.id, users.name, COUNT(posts.user_id) AS post_count FROM users INNER JOIN posts ON users.id = posts.user_id WHERE users.id IN (SELECT follows.followee_id FROM follows WHERE follows.follower_id = 2) GROUP BY users.id, users.name ORDER BY post_count DESC LIMIT 1;
+
+SELECT posts.id, users.name, posts.content, posts.created_at FROM posts INNER JOIN users ON posts.user_id = users.id WHERE posts.user_id IN (SELECT follows.followee_id FROM follows WHERE follows.follower_id = 1) ORDER BY posts.created_at DESC;
+
+SELECT users.id, users.name AS influencer FROM users 
+ WHERE users.id NOT IN (SELECT follows.followee_id AS influencer_id FROM follows WHERE follows.follower_id = 1)
+ AND users.id IN (SELECT follows.followee_id AS influencer_id FROM follows WHERE follows.follower_id IN (SELECT followee_id AS influencer_id FROM follows WHERE follower_id = 1) AND follows.followee_id != 1);
+
+
+-- SQL Querying Ex Set: Advanced 1 E-Commerce
+SELECT orders.id, orders.created_at, customers.name FROM orders LEFT JOIN customers ON orders.customer_id = customers.id;
+
+SELECT products.name, products.price FROM products INNER JOIN products_tags ON products.id = products_tags.product_id INNER JOIN tags on products_tags.tag_id = tags.id WHERE tags.name = 'tech' ORDER BY products.price ASC;
+
+SELECT ROUND(AVG(distinct_count), 2) FROM (SELECT order_id, COUNT(product_id) AS distinct_count FROM orders_products GROUP BY order_id);
+
+SELECT orders.created_at, products.name, orders_products.quantity FROM customers INNER JOIN orders ON customers.id = orders.customer_id INNER JOIN orders_products ON orders.id = orders_products.order_id INNER JOIN products ON orders_products.product_id = products.id WHERE customers.id = 1 ORDER BY orders.created_at DESC, products.name ASC;
+
+SELECT products.name, COUNT(products_tags.tag_id) AS tag_count FROM products INNER JOIN products_tags ON products.id = products_tags.product_id GROUP BY products.name HAVING COUNT(products_tags.product_id) > 2;
+
+SELECT DISTINCT orders.id FROM orders INNER JOIN orders_products ON orders.id = orders_products.order_id INNER JOIN products_tags ON orders_products.product_id = products_tags.product_id INNER JOIN tags on products_tags.tag_id = tags.id WHERE tags.name = 'audio';
+
+SELECT orders.id AS order_id, customers.name AS customer_name, SUM(products.price * orders_products.quantity) AS total_price FROM orders INNER JOIN customers ON orders.customer_id = customers.id INNER JOIN orders_products ON orders.id = orders_products.order_id INNER JOIN products ON orders_products.product_id = products.id GROUP BY orders.id, customers.name;
+
+SELECT customers.name, SUM(products.price * orders_products.quantity) AS spending FROM customers INNER JOIN orders on customers.id = orders.customer_id INNER JOIN orders_products ON orders.id = orders_products.order_id INNER JOIN products ON orders_products.product_id = products.id GROUP BY customers.id ORDER BY spending DESC;
+
+SELECT tags.name AS tag, SUM(orders_products.quantity) AS products_ordered FROM tags LEFT JOIN products_tags ON tags.id = products_tags.tag_id LEFT JOIN orders_products ON products_tags.product_id = orders_products.product_id GROUP BY tags.id, tags.name ORDER BY products_ordered DESC;
